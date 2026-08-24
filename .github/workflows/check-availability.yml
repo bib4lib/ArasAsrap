@@ -1,0 +1,42 @@
+name: Check Fizz Utrecht Availability
+
+on:
+  schedule:
+    # Every 5 minutes, 04:00-17:59 UTC, Tue-Fri.
+    # This window safely covers 06:00-19:00 Europe/Amsterdam time
+    # across both CET (winter) and CEST (summer). The script itself
+    # double-checks the exact local time and skips if outside it.
+    - cron: "*/5 4-17 * * 2-5"
+  workflow_dispatch: {}   # lets you manually trigger a run from the Actions tab
+
+permissions:
+  contents: write   # needed so the workflow can commit the updated state.json
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run availability check
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python check_availability.py
+
+      - name: Save updated state
+        run: |
+          git config user.name "availability-bot"
+          git config user.email "actions@github.com"
+          git add state.json
+          git diff --quiet --cached || git commit -m "Update state.json"
+          git push
