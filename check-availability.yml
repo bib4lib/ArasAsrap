@@ -38,5 +38,22 @@ jobs:
           git config user.name "availability-bot"
           git config user.email "actions@github.com"
           git add state.json
-          git diff --quiet --cached || git commit -m "Update state.json"
-          git push
+          if git diff --quiet --cached; then
+            echo "No state changes to commit."
+            exit 0
+          fi
+          git commit -m "Update state.json"
+          # Two checks can occasionally overlap and both try to save at
+          # once. If our push gets rejected because another run saved
+          # first, pull its changes in and retry, a few times if needed.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Push succeeded."
+              exit 0
+            fi
+            echo "Push rejected (attempt $i), pulling latest and retrying..."
+            git pull --rebase origin main
+            sleep $(( (RANDOM % 5) + 1 ))
+          done
+          echo "Could not push after several attempts."
+          exit 1
