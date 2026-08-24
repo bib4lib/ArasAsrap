@@ -50,24 +50,46 @@ def save_state(state: dict) -> None:
 
 
 def fetch_page_text() -> str:
+    """Fetch and return the page's visible text, lowercased.
+    Retries once if the first attempt fails (network blips, timeouts)."""
     headers = {"User-Agent": "Mozilla/5.0 (compatible; AvailabilityChecker/1.0)"}
-    resp = requests.get(URL, headers=headers, timeout=30)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "html.parser")
-    return soup.get_text(separator=" ", strip=True).lower()
+    last_error = None
+    for attempt in range(2):
+        try:
+            resp = requests.get(URL, headers=headers, timeout=30)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "html.parser")
+            return soup.get_text(separator=" ", strip=True).lower()
+        except requests.RequestException as exc:
+            last_error = exc
+            print(f"Fetch attempt {attempt + 1} failed: {exc}", file=sys.stderr)
+    raise RuntimeError(f"Could not fetch page after retry: {last_error}")
 
 
-def send_telegram_message(text: str) -> None:
+def page_looks_valid(page_text: str) -> bool:
+    """Sanity check that we actually got the real page, not an error page,
+    CAPTCHA, or a structurally-changed version we can no longer read
+    correctly. If these baseline words are missing, something's wrong."""
+    expected_markers = ["utrecht", "student accommodation", "apartment"]
+    return all(marker in page_text for marker in expected_markers)
+
+
+def send_telegram_message(text: str) -> bool:
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         print("Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID env vars.", file=sys.stderr)
-        sys.exit(1)
+        return False
     api_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    resp = requests.post(
-        api_url,
-        json={"chat_id": TELEGRAM_CHAT_ID, "text": text, "disable_web_page_preview": False},
-        timeout=15,
-    )
-    resp.raise_for_status()
+    try:
+        resp = requests.post(
+            api_url,
+            json={"chat_id": TELEGRAM_CHAT_ID, "text": text, "disable_web_page_preview": False},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return True
+    except requests.RequestException as exc:
+        print(f"Failed to send Telegram message: {exc}", file=sys.stderr)
+        return False
 
 
 def main() -> None:
@@ -76,7 +98,40 @@ def main() -> None:
         return
 
     state = load_state()
-    page_text = fetch_page_text()
+
+    try:
+        page_text = fetch_page_text()
+    except RuntimeError as exc:
+        # Fetch failed twice in a row. Don't touch state (avoid recording a
+        # false "available"/"booked" reading), and let the run fail loudly
+        # so it shows up as a red X in the Actions tab.
+        print(f"Giving up this run: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if not page_looks_valid(page_text):
+        # The page loaded, but doesn't contain the text we'd expect on a
+        # normal page load. Could mean the site changed its layout, blocked
+        # the request, or served an error page. Alert once (throttled to
+        # avoid spam) rather than silently mis-reading the state.
+        already_alerted_today = state.get("last_broken_alert_date") == datetime.now(
+            ZoneInfo("Europe/Amsterdam")
+        ).strftime("%Y-%m-%d")
+        if not already_alerted_today:
+            send_telegram_message(
+                "⚠️ Heads up: the Fizz Utrecht availability checker fetched "
+                "the page but couldn't recognize its content. The site may "
+                "have changed, or the request may have been blocked. "
+                "The bot will keep retrying automatically, but you may want "
+                "to check it manually in the meantime.\n\n"
+                f"{URL}"
+            )
+            state["last_broken_alert_date"] = datetime.now(
+                ZoneInfo("Europe/Amsterdam")
+            ).strftime("%Y-%m-%d")
+            save_state(state)
+        print("Page content didn't pass the sanity check. Skipping this run.")
+        return
+
     currently_fully_booked = FULLY_BOOKED_PHRASE in page_text
 
     print(f"Fully booked right now: {currently_fully_booked}")
