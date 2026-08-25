@@ -2,11 +2,13 @@ name: Check Fizz Utrecht Availability
 
 on:
   schedule:
-    # Every 5 minutes, 04:00-17:59 UTC, Tue-Fri.
-    # This window safely covers 06:00-19:00 Europe/Amsterdam time
-    # across both CET (winter) and CEST (summer). The script itself
-    # double-checks the exact local time and skips if outside it.
+    # Kept as a backup trigger, but GitHub's own scheduler is known to be
+    # unreliable/delayed for frequent (every-5-min) schedules — the real
+    # trigger is the repository_dispatch below, pinged by an external
+    # cron service for punctual, predictable timing.
     - cron: "*/5 4-17 * * 2-5"
+  repository_dispatch:
+    types: [run-check]
   workflow_dispatch: {}   # lets you manually trigger a run from the Actions tab
 
 permissions:
