@@ -1,7 +1,7 @@
 # Fizz Utrecht Availability Bot — Setup Guide (no coding needed)
 
 This bot checks https://www.the-fizz.com/en/student-accommodation/utrecht/
-every 5 minutes, Tuesday to Friday between 06:00 and 19:00 (Amsterdam time),
+every 2 minutes, Monday to Friday between 06:00 and 21:00 (Amsterdam time),
 and sends you a Telegram message the moment the "fully booked" notice
 disappears from the page. It runs entirely on GitHub's free servers — your
 laptop can be off.
