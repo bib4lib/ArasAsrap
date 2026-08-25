@@ -25,7 +25,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 # Allowed checking window
-ALLOWED_DAYS = {1, 2, 3, 4}  # Monday=0 ... Tuesday-Friday = 1,2,3,4
+ALLOWED_DAYS = {0, 1, 2, 3, 4}  # Monday=0 ... Monday-Friday = 0,1,2,3,4
 ALLOWED_START_HOUR = 6
 ALLOWED_END_HOUR = 19
 
