@@ -6,7 +6,7 @@ on:
     # unreliable/delayed for frequent (every-5-min) schedules — the real
     # trigger is the repository_dispatch below, pinged by an external
     # cron service for punctual, predictable timing.
-    - cron: "*/5 4-17 * * 2-5"
+    - cron: "*/5 4-17 * * 1-5"
   repository_dispatch:
     types: [run-check]
   workflow_dispatch: {}   # lets you manually trigger a run from the Actions tab
