@@ -33,8 +33,8 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 # Allowed checking window
 ALLOWED_DAYS = {0, 1, 2, 3, 4}  # Monday=0 ... Monday-Friday = 0,1,2,3,4
-ALLOWED_START_HOUR = 0   # full day — no evidence releases are confined to business hours
-ALLOWED_END_HOUR = 24
+ALLOWED_START_HOUR = 6
+ALLOWED_END_HOUR = 21   # 9pm
 
 
 def within_allowed_window() -> bool:
