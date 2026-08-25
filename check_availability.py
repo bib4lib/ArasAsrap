@@ -9,6 +9,7 @@ outside that window it exits immediately without checking or notifying.
 
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,12 @@ from bs4 import BeautifulSoup
 URL = "https://www.the-fizz.com/en/student-accommodation/utrecht/"
 STATE_FILE = Path("state.json")
 FULLY_BOOKED_PHRASE = "fully booked"
+# Strongest signal: confirmed from THE FIZZ Leiden (a page that currently HAS
+# availability) — real listings show "from €1,111.11/month" style pricing
+# directly in the apartment cards. Utrecht's static reference pricing table
+# (present regardless of availability) never uses "from €" or "/month", so
+# this pattern is specific to genuinely bookable listings, not background noise.
+PRICE_PATTERN = re.compile(r"from\s*€\s*[\d,.]+\s*/\s*month")
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -42,7 +49,7 @@ def within_allowed_window() -> bool:
 def load_state() -> dict:
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text())
-    return {"fully_booked": True}
+    return {"available": False, "fully_booked": True}
 
 
 def save_state(state: dict) -> None:
@@ -133,17 +140,25 @@ def main() -> None:
         return
 
     currently_fully_booked = FULLY_BOOKED_PHRASE in page_text
+    price_found = bool(PRICE_PATTERN.search(page_text))
+    # Available if EITHER: the "fully booked" notice is gone, OR a real
+    # listing price ("from €.../month") appeared.
+    currently_available = (not currently_fully_booked) or price_found
 
     print(f"Fully booked right now: {currently_fully_booked}")
+    print(f"Real listing price pattern found: {price_found}")
 
-    was_fully_booked = state.get("fully_booked", True)
+    was_available = state.get("available", False)
 
-    if was_fully_booked and not currently_fully_booked:
+    if currently_available and not was_available:
         # Status flipped from booked -> available: notify!
+        if price_found:
+            reason = "a real listing price ('from €.../month') appeared on the page"
+        else:
+            reason = "the 'fully booked' notice is gone from the page"
         message = (
             "🎉 New availability at THE FIZZ Utrecht!\n\n"
-            "The 'fully booked' notice is gone from the page — "
-            "there may be a studio open now.\n\n"
+            f"Detected because {reason} — there may be a studio open now.\n\n"
             f"Check here: {URL}"
         )
         send_telegram_message(message)
@@ -151,7 +166,8 @@ def main() -> None:
     else:
         print("No change since last check. No notification sent.")
 
-    state["fully_booked"] = currently_fully_booked
+    state["available"] = currently_available
+    state["fully_booked"] = currently_fully_booked  # kept for backward compatibility
     save_state(state)
 
 
