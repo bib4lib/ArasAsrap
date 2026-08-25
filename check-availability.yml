@@ -3,10 +3,10 @@ name: Check Fizz Utrecht Availability
 on:
   schedule:
     # Kept as a backup trigger, but GitHub's own scheduler is known to be
-    # unreliable/delayed for frequent (every-5-min) schedules — the real
-    # trigger is the repository_dispatch below, pinged by an external
-    # cron service for punctual, predictable timing.
-    - cron: "*/5 4-17 * * 1-5"
+    # unreliable/delayed for frequent schedules — the real trigger is the
+    # repository_dispatch below, pinged by an external cron service for
+    # punctual, predictable timing. Full day (no hour restriction), Mon-Fri.
+    - cron: "*/5 * * * 1-5"
   repository_dispatch:
     types: [run-check]
   workflow_dispatch: {}   # lets you manually trigger a run from the Actions tab
