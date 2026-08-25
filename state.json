@@ -1,3 +1,4 @@
 {
-  "fully_booked": true
+  "fully_booked": true,
+  "available": false
 }
