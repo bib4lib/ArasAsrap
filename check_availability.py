@@ -32,7 +32,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 # Allowed checking window
-ALLOWED_DAYS = {0, 1, 2, 3, 4}  # Monday=0 ... Monday-Friday = 0,1,2,3,4
+ALLOWED_DAYS = {0, 1, 2, 3, 4, 5, 6}  # Monday=0 ... Monday-Sunday = 0,1,2,3,4,5,6
 ALLOWED_START_HOUR = 0   # full day — release timing isn't confined to business hours
 ALLOWED_END_HOUR = 24
 
